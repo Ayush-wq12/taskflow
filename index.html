@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TaskFlow — Team Collaboration</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a26;
+    --surface3: #22223a;
+    --border: #2a2a40;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --accent3: #43e97b;
+    --accent4: #f7971e;
+    --text: #e8e8f0;
+    --text2: #9090b0;
+    --text3: #5a5a7a;
+    --todo: #6c63ff;
+    --inprog: #f7971e;
+    --done: #43e97b;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 9999; opacity: 0.4;
+  }
+
+  /* ── AUTH SCREEN ── */
+  #auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .auth-glow {
+    position: absolute;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(108,99,255,0.15) 0%, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 420px;
+    position: relative;
+    box-shadow: var(--shadow), 0 0 0 1px rgba(108,99,255,0.1);
+    animation: slideUp 0.5s ease;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .auth-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+
+  .auth-logo .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+
+  .auth-logo span {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .auth-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    margin-bottom: 28px;
+  }
+
+  .auth-tab {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text2);
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .auth-tab.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(108,99,255,0.15);
+  }
+
+  .form-group select option { background: var(--surface2); }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-primary:hover { background: #7c74ff; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(108,99,255,0.4); }
+
+  .btn-danger {
+    background: rgba(255,101,132,0.15);
+    color: var(--accent2);
+    border: 1px solid rgba(255,101,132,0.3);
+  }
+
+  .btn-danger:hover { background: rgba(255,101,132,0.25); }
+
+  .btn-sm {
+    width: auto;
+    padding: 6px 14px;
+    font-size: 12px;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+  }
+
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .error-msg {
+    background: rgba(255,101,132,0.1);
+    border: 1px solid rgba(255,101,132,0.3);
+    color: var(--accent2);
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  /* ── MAIN APP ── */
+  #app-screen { display: none; min-height: 100vh; }
+
+  .app-layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px;
+    margin-bottom: 24px;
+  }
+
+  .sidebar-logo .logo-icon {
+    width: 34px; height: 34px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .sidebar-logo span {
+    font-size: 18px;
+    font-weight: 800;
+  }
+
+  .nav-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 0 8px;
+    margin-top: 12px;
+    margin-bottom: 4px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--text2);
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(108,99,255,0.15); color: var(--accent); }
+
+  .nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 20px;
+  }
+
+  .sidebar-user {
+    margin-top: auto;
+    padding: 14px;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .user-avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-user .user-info { flex: 1; min-width: 0; }
+  .sidebar-user .user-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidebar-user .user-role { font-size: 11px; color: var(--text2); }
+
+  .logout-btn {
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    transition: color 0.2s;
+  }
+  .logout-btn:hover { color: var(--accent2); }
+
+  /* ── MAIN CONTENT ── */
+  .main-content {
+    padding: 32px 36px;
+    overflow-y: auto;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  .page-title { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+  .page-subtitle { font-size: 14px; color: var(--text2); margin-top: 4px; }
+
+  /* ── DASHBOARD STATS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    transform: translate(30px, -30px);
+    opacity: 0.15;
+  }
+
+  .stat-card:nth-child(1)::before { background: var(--accent); }
+  .stat-card:nth-child(2)::before { background: var(--accent4); }
+  .stat-card:nth-child(3)::before { background: var(--accent3); }
+  .stat-card:nth-child(4)::before { background: var(--accent2); }
+
+  .stat-icon { font-size: 24px; margin-bottom: 12px; }
+  .stat-value { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
+  .stat-label { font-size: 13px; color: var(--text2); font-weight: 600; margin-top: 2px; }
+
+  /* ── BOARD VIEW ── */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .board-col {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .board-col-header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .col-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+
+  .col-dot.todo   { background: var(--todo); }
+  .col-dot.inprog { background: var(--inprog); }
+  .col-dot.done   { background: var(--done); }
+
+  .board-col-header h3 { font-size: 14px; font-weight: 700; flex: 1; }
+
+  .col-count {
+    background: var(--surface2);
+    color: var(--text2);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .board-col-body {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 200px;
+  }
+
+  /* ── TASK CARD ── */
+  .task-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .task-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+
+  .task-card.todo::before   { background: var(--todo); }
+  .task-card.inprog::before { background: var(--inprog); }
+  .task-card.done::before   { background: var(--done); }
+
+  .task-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+
+  .task-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  .task-card-desc {
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 10px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .task-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .tag-priority-high   { background: rgba(255,101,132,0.15); color: var(--accent2); }
+  .tag-priority-medium { background: rgba(247,151,30,0.15);  color: var(--accent4); }
+  .tag-priority-low    { background: rgba(67,233,123,0.15);  color: var(--accent3); }
+
+  .mini-avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .comment-count {
+    font-size: 11px;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  /* ── TASK LIST ── */
+  .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .task-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr auto auto auto auto;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .task-row:hover { border-color: var(--accent); }
+
+  .task-row-title { font-size: 14px; font-weight: 700; }
+  .task-row-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  .status-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  .status-todo   { background: rgba(108,99,255,0.15); color: var(--todo); }
+  .status-inprog { background: rgba(247,151,30,0.15);  color: var(--accent4); }
+  .status-done   { background: rgba(67,233,123,0.15);  color: var(--done); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow);
+    animation: modalIn 0.25s ease;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(16px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-header {
+    padding: 24px 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-title { font-size: 20px; font-weight: 800; }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+    padding: 4px;
+    transition: color 0.2s;
+  }
+
+  .modal-close:hover { color: var(--accent2); }
+
+  .modal-body { padding: 24px; }
+
+  .modal-footer {
+    padding: 0 24px 24px;
+    display: flex;
+    gap: 10px;
+  }
+
+  /* ── TASK DETAIL ── */
+  .task-detail-status {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .status-btn {
+    flex: 1;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    font-family: 'Syne', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .status-btn.active-todo   { border-color: var(--todo);   background: rgba(108,99,255,0.15); color: var(--todo); }
+  .status-btn.active-inprog { border-color: var(--inprog); background: rgba(247,151,30,0.15);  color: var(--inprog); }
+  .status-btn.active-done   { border-color: var(--done);   background: rgba(67,233,123,0.15);  color: var(--done); }
+
+  /* ── COMMENTS ── */
+  .comments-section { margin-top: 20px; }
+  .comments-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }
+
+  .comment {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .comment-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .comment-content { flex: 1; }
+
+  .comment-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .comment-author { font-size: 13px; font-weight: 700; }
+  .comment-time { font-size: 11px; color: var(--text3); font-family: 'Space Mono', monospace; }
+  .comment-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+
+  .comment-input-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    align-items: flex-end;
+  }
+
+  .comment-input-row textarea {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    resize: none;
+    min-height: 42px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .comment-input-row textarea:focus { border-color: var(--accent); }
+
+  .comment-send-btn {
+    padding: 10px 16px;
+    background: var(--accent);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+
+  .comment-send-btn:hover { background: #7c74ff; }
+
+  /* ── FILTERS BAR ── */
+  .filters-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filter-chip {
+    padding: 7px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text2);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .filter-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .search-input {
+    padding: 8px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 220px;
+    margin-left: auto;
+  }
+
+  .search-input:focus { border-color: var(--accent); }
+
+  /* ── RECENT ACTIVITY ── */
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+  }
+
+  .activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .activity-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+
+  .activity-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .activity-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  .activity-text strong { color: var(--text); }
+  .activity-time { font-size: 11px; color: var(--text3); font-family: 'Space Mono', monospace; margin-top: 2px; }
+
+  /* ── TWO-COL LAYOUT ── */
+  .two-col { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+
+  /* ── TEAM PAGE ── */
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+
+  .member-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .member-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+  .member-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 auto 12px;
+  }
+
+  .member-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .member-email { font-size: 12px; color: var(--text2); margin-bottom: 14px; }
+  .member-stats { display: flex; justify-content: center; gap: 16px; }
+  .member-stat { text-align: center; }
+  .member-stat-val { font-size: 18px; font-weight: 800; }
+  .member-stat-lbl { font-size: 11px; color: var(--text2); }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text3);
+  }
+
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state h3 { font-size: 16px; font-weight: 700; color: var(--text2); margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    z-index: 9998;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+    max-width: 300px;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-left: 3px solid var(--accent3); }
+  .toast.error   { border-left: 3px solid var(--accent2); }
+
+  /* ── PROGRESS BAR ── */
+  .progress-bar { height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; background: var(--accent3); border-radius: 3px; transition: width 0.5s ease; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .app-layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .board { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ AUTH SCREEN ══ -->
+<div id="auth-screen">
+  <div class="auth-glow"></div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">⚡</div>
+      <span>TaskFlow</span>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Login</button>
+      <button class="auth-tab" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <div id="auth-error" class="error-msg"></div>
+
+    <!-- LOGIN FORM -->
+    <div id="login-form">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" />
+      </div>
+      <button class="btn btn-primary" onclick="handleLogin()">Sign In</button>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="register-form" style="display:none">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="reg-name" placeholder="John Doe" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="reg-password" placeholder="Min. 6 characters" />
+      </div>
+      <button class="btn btn-primary" onclick="handleRegister()">Create Account</button>
+    </div>
+
+    <p style="text-align:center; margin-top:20px; font-size:12px; color:var(--text3)">
+      Demo: <strong style="color:var(--text2)">demo@test.com</strong> / <strong style="color:var(--text2)">password</strong>
+    </p>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div id="app-screen">
+  <div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">⚡</div>
+        <span>TaskFlow</span>
+      </div>
+
+      <span class="nav-section-label">Main</span>
+      <button class="nav-item active" onclick="navigate('dashboard')">
+        <span class="nav-icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" onclick="navigate('board')">
+        <span class="nav-icon">🗂️</span> Board
+      </button>
+
+      <span class="nav-section-label">Tasks</span>
+      <button class="nav-item" onclick="navigate('my-tasks')">
+        <span class="nav-icon">✅</span> My Tasks
+        <span class="nav-badge" id="nav-my-count">0</span>
+      </button>
+      <button class="nav-item" onclick="navigate('assigned')">
+        <span class="nav-icon">👤</span> Assigned to Me
+        <span class="nav-badge" id="nav-assigned-count">0</span>
+      </button>
+      <button class="nav-item" onclick="navigate('all-tasks')">
+        <span class="nav-icon">📋</span> All Tasks
+      </button>
+
+      <span class="nav-section-label">Team</span>
+      <button class="nav-item" onclick="navigate('team')">
+        <span class="nav-icon">👥</span> Team Members
+      </button>
+
+      <div class="sidebar-user">
+        <div class="user-avatar" id="sidebar-avatar" style="background: var(--accent)"></div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-username">User</div>
+          <div class="user-role">Member</div>
+        </div>
+        <button class="logout-btn" onclick="handleLogout()" title="Logout">⏻</button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+      <!-- ── DASHBOARD ── -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Dashboard 📊</div>
+            <div class="page-subtitle" id="dash-greeting">Welcome back!</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openCreateTask()">+ New Task</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">📋</div>
+            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-label">Total Tasks</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🔄</div>
+            <div class="stat-value" id="stat-inprog">0</div>
+            <div class="stat-label">In Progress</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value" id="stat-done">0</div>
+            <div class="stat-label">Completed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-value" id="stat-pending">0</div>
+            <div class="stat-label">To-Do</div>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="panel" style="margin-bottom:24px">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+            <span style="font-weight:700; font-size:14px">Overall Progress</span>
+            <span id="progress-pct" style="font-family:'Space Mono',monospace; font-size:13px; color:var(--accent3)">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <!-- Recent tasks -->
+          <div>
+            <div class="section-title">Recent Tasks</div>
+            <div id="recent-tasks" class="task-list"></div>
+          </div>
+
+          <!-- Activity -->
+          <div class="panel">
+            <div class="section-title">Recent Activity</div>
+            <div id="activity-list" class="activity-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── BOARD ── -->
+      <div id="page-board" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Task Board 🗂️</div>
+            <div class="page-subtitle">Kanban-style overview</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openCreateTask()">+ New Task</button>
+        </div>
+
+        <div class="board">
+          <div class="board-col">
+            <div class="board-col-header">
+              <div class="col-dot todo"></div>
+              <h3>To-Do</h3>
+              <span class="col-count" id="board-todo-count">0</span>
+            </div>
+            <div class="board-col-body" id="board-todo"></div>
+          </div>
+          <div class="board-col">
+            <div class="board-col-header">
+              <div class="col-dot inprog"></div>
+              <h3>In Progress</h3>
+              <span class="col-count" id="board-inprog-count">0</span>
+            </div>
+            <div class="board-col-body" id="board-inprog"></div>
+          </div>
+          <div class="board-col">
+            <div class="board-col-header">
+              <div class="col-dot done"></div>
+              <h3>Done</h3>
+              <span class="col-count" id="board-done-count">0</span>
+            </div>
+            <div class="board-col-body" id="board-done"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MY TASKS ── -->
+      <div id="page-my-tasks" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">My Tasks ✅</div>
+            <div class="page-subtitle">Tasks you created</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openCreateTask()">+ New Task</button>
+        </div>
+        <div class="filters-bar" id="my-tasks-filters"></div>
+        <div id="my-tasks-list" class="task-list"></div>
+      </div>
+
+      <!-- ── ASSIGNED TO ME ── -->
+      <div id="page-assigned" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Assigned to Me 👤</div>
+            <div class="page-subtitle">Tasks others assigned to you</div>
+          </div>
+        </div>
+        <div id="assigned-list" class="task-list"></div>
+      </div>
+
+      <!-- ── ALL TASKS ── -->
+      <div id="page-all-tasks" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">All Tasks 📋</div>
+            <div class="page-subtitle">Every task across the team</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openCreateTask()">+ New Task</button>
+        </div>
+        <div class="filters-bar">
+          <button class="filter-chip active" onclick="filterAllTasks('all', this)">All</button>
+          <button class="filter-chip" onclick="filterAllTasks('todo', this)">To-Do</button>
+          <button class="filter-chip" onclick="filterAllTasks('inprogress', this)">In Progress</button>
+          <button class="filter-chip" onclick="filterAllTasks('done', this)">Done</button>
+          <button class="filter-chip" onclick="filterAllTasks('high', this)">🔴 High Priority</button>
+          <input type="text" class="search-input" placeholder="Search tasks..." oninput="searchTasks(this.value)" />
+        </div>
+        <div id="all-tasks-list" class="task-list"></div>
+      </div>
+
+      <!-- ── TEAM ── -->
+      <div id="page-team" class="page">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Team Members 👥</div>
+            <div class="page-subtitle">Everyone in your workspace</div>
+          </div>
+        </div>
+        <div id="team-grid" class="team-grid"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ══ CREATE/EDIT TASK MODAL ══ -->
+<div class="modal-overlay" id="task-form-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="task-form-title">New Task</div>
+      <button class="modal-close" onclick="closeModal('task-form-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="task-edit-id" />
+      <div class="form-group">
+        <label>Task Title *</label>
+        <input type="text" id="task-title" placeholder="What needs to be done?" />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="task-desc" placeholder="Add more details..."></textarea>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="task-priority">
+            <option value="low">🟢 Low</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="high">🔴 High</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Assign To</label>
+          <select id="task-assignee">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="task-status">
+          <option value="todo">To-Do</option>
+          <option value="inprogress">In Progress</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveTask()">Save Task</button>
+      <button class="btn btn-ghost" onclick="closeModal('task-form-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TASK DETAIL MODAL ══ -->
+<div class="modal-overlay" id="task-detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="detail-title">Task</div>
+      <button class="modal-close" onclick="closeModal('task-detail-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="task-detail-status" id="detail-status-btns"></div>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px; color:var(--text2); margin-bottom:4px">Description</div>
+        <div id="detail-desc" style="font-size:14px; color:var(--text); line-height:1.6"></div>
+      </div>
+
+      <div style="display:flex; gap:24px; margin-bottom:12px; flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.08em; font-weight:700; margin-bottom:4px">Priority</div>
+          <div id="detail-priority" style="font-size:13px; font-weight:700"></div>
+        </div>
+        <div>
+          <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.08em; font-weight:700; margin-bottom:4px">Created By</div>
+          <div id="detail-creator" style="font-size:13px; font-weight:700"></div>
+        </div>
+        <div>
+          <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.08em; font-weight:700; margin-bottom:4px">Assigned To</div>
+          <div id="detail-assignee" style="font-size:13px; font-weight:700"></div>
+        </div>
+        <div>
+          <div style="font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.08em; font-weight:700; margin-bottom:4px">Created</div>
+          <div id="detail-date" style="font-size:13px; font-family:'Space Mono',monospace"></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Comments -->
+      <div class="comments-section">
+        <div class="comments-title">💬 Comments</div>
+        <div id="comments-list"></div>
+        <div class="comment-input-row">
+          <textarea id="comment-input" placeholder="Add a comment..." rows="1"></textarea>
+          <button class="comment-send-btn" onclick="addComment()">Send</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="editCurrentTask()">✏️ Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCurrentTask()">🗑️ Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  FAKE BACKEND (Replace with real API calls)
+// ══════════════════════════════════════════════
+
+// In a real app, replace these functions with fetch() calls to your Express API:
+// POST /api/register, POST /api/login, GET/POST/PUT/DELETE /api/tasks, etc.
+
+const COLORS = ['#6c63ff','#ff6584','#43e97b','#f7971e','#4facfe','#fa709a','#fee140'];
+
+let DB = {
+  users: [
+    { id: 'u1', name: 'Alice Johnson', email: 'demo@test.com', password: 'password', color: COLORS[0] },
+    { id: 'u2', name: 'Bob Smith',     email: 'bob@test.com',  password: 'password', color: COLORS[1] },
+    { id: 'u3', name: 'Carol White',   email: 'carol@test.com',password: 'password', color: COLORS[2] },
+    { id: 'u4', name: 'David Lee',     email: 'david@test.com',password: 'password', color: COLORS[3] },
+  ],
+  tasks: [
+    { id: 't1', title: 'Design landing page mockups', desc: 'Create wireframes and high-fidelity designs for the new product landing page using Figma.', status: 'done', priority: 'high', creatorId: 'u1', assigneeId: 'u2', comments: [{id:'c1',userId:'u2',text:'Mockups are ready for review!',time:'2024-01-10T10:30:00'}], createdAt: '2024-01-08T09:00:00' },
+    { id: 't2', title: 'Set up MongoDB schemas', desc: 'Define User, Task, and Comment models with proper validation and indexes.', status: 'done', priority: 'high', creatorId: 'u1', assigneeId: 'u1', comments: [], createdAt: '2024-01-09T11:00:00' },
+    { id: 't3', title: 'Build authentication API', desc: 'Implement JWT-based login and registration endpoints with bcrypt password hashing.', status: 'inprogress', priority: 'high', creatorId: 'u1', assigneeId: 'u3', comments: [{id:'c2',userId:'u1',text:'JWT middleware is done. Working on refresh tokens now.', time:'2024-01-11T14:00:00'}], createdAt: '2024-01-10T08:00:00' },
+    { id: 't4', title: 'Implement task CRUD endpoints', desc: 'POST, GET, PUT, DELETE for /api/tasks with proper authorization checks.', status: 'inprogress', priority: 'medium', creatorId: 'u2', assigneeId: 'u1', comments: [], createdAt: '2024-01-10T13:00:00' },
+    { id: 't5', title: 'Frontend task board component', desc: 'Build the Kanban board with drag-and-drop support using React DnD library.', status: 'todo', priority: 'medium', creatorId: 'u1', assigneeId: 'u2', comments: [], createdAt: '2024-01-11T09:00:00' },
+    { id: 't6', title: 'Comment system integration', desc: 'Connect frontend comment UI with backend POST /api/tasks/:id/comment endpoint.', status: 'todo', priority: 'low', creatorId: 'u3', assigneeId: 'u1', comments: [], createdAt: '2024-01-11T10:00:00' },
+    { id: 't7', title: 'Write API documentation', desc: 'Document all endpoints with examples using Swagger or Postman collections.', status: 'todo', priority: 'low', creatorId: 'u2', assigneeId: 'u4', comments: [], createdAt: '2024-01-11T11:00:00' },
+    { id: 't8', title: 'Deploy to production', desc: 'Set up CI/CD pipeline, configure environment variables, and deploy on Heroku or Vercel.', status: 'todo', priority: 'high', creatorId: 'u1', assigneeId: null, comments: [], createdAt: '2024-01-12T09:00:00' },
+  ],
+  activity: [
+    { text: '<strong>Alice</strong> completed <strong>Set up MongoDB schemas</strong>', time: '2 min ago', color: '#6c63ff' },
+    { text: '<strong>Bob</strong> commented on <strong>Design landing page mockups</strong>', time: '15 min ago', color: '#ff6584' },
+    { text: '<strong>Carol</strong> started working on <strong>Build authentication API</strong>', time: '1 hr ago', color: '#43e97b' },
+    { text: '<strong>Alice</strong> created <strong>Deploy to production</strong>', time: '2 hr ago', color: '#6c63ff' },
+    { text: '<strong>David</strong> joined the workspace', time: '1 day ago', color: '#f7971e' },
+  ]
+};
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+
+let currentUser = null;
+let currentTaskId = null;
+let allTasksFilter = 'all';
+let allTasksSearch = '';
+
+// ══════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════
+
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register')));
+  document.getElementById('login-form').style.display    = tab === 'login' ? 'block' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+  clearAuthError();
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function clearAuthError() {
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function handleLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const user  = DB.users.find(u => u.email === email && u.password === pass);
+  if (!user) { showAuthError('Invalid email or password.'); return; }
+  loginSuccess(user);
+}
+
+function handleRegister() {
+  const name  = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass  = document.getElementById('reg-password').value;
+  if (!name || !email || !pass) { showAuthError('All fields are required.'); return; }
+  if (DB.users.find(u => u.email === email)) { showAuthError('Email already registered.'); return; }
+  if (pass.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+  const newUser = { id: 'u' + Date.now(), name, email, password: pass, color: COLORS[DB.users.length % COLORS.length] };
+  DB.users.push(newUser);
+  loginSuccess(newUser);
+}
+
+function loginSuccess(user) {
+  currentUser = user;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+
+  // Setup sidebar
+  const av = document.getElementById('sidebar-avatar');
+  av.textContent = user.name[0].toUpperCase();
+  av.style.background = user.color;
+  document.getElementById('sidebar-username').textContent = user.name;
+  document.getElementById('dash-greeting').textContent = 'Good day, ' + user.name.split(' ')[0] + '!';
+
+  refreshAll();
+  navigate('dashboard');
+}
+
+function handleLogout() {
+  currentUser = null;
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════
+
+function navigate(page) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+  const navMap = { dashboard: 0, board: 1, 'my-tasks': 2, assigned: 3, 'all-tasks': 4, team: 5 };
+  const navItems = document.querySelectorAll('.nav-item');
+  if (navMap[page] !== undefined) navItems[navMap[page]].classList.add('active');
+
+  document.getElementById('page-' + page).classList.add('active');
+  renderPage(page);
+}
+
+function renderPage(page) {
+  if (page === 'dashboard')  renderDashboard();
+  if (page === 'board')      renderBoard();
+  if (page === 'my-tasks')   renderMyTasks();
+  if (page === 'assigned')   renderAssigned();
+  if (page === 'all-tasks')  renderAllTasks();
+  if (page === 'team')       renderTeam();
+}
+
+// ══════════════════════════════════════════════
+//  RENDER HELPERS
+// ══════════════════════════════════════════════
+
+function getUserById(id) { return DB.users.find(u => u.id === id); }
+
+function avatarHtml(userId, size = 28) {
+  const u = getUserById(userId);
+  if (!u) return '';
+  return `<div class="mini-avatar" style="width:${size}px;height:${size}px;background:${u.color};font-size:${Math.floor(size*0.4)}px">${u.name[0]}</div>`;
+}
+
+function statusPill(status) {
+  const map = { todo: ['status-todo','To-Do'], inprogress: ['status-inprog','In Progress'], done: ['status-done','Done'] };
+  const [cls, label] = map[status] || ['',''];
+  return `<span class="status-pill ${cls}">${label}</span>`;
+}
+
+function priorityTag(p) {
+  const map = { high: 'tag-priority-high', medium: 'tag-priority-medium', low: 'tag-priority-low' };
+  return `<span class="tag ${map[p]}">${p}</span>`;
+}
+
+function taskCard(task) {
+  const assignee = task.assigneeId ? getUserById(task.assigneeId) : null;
+  const statusClass = { todo: 'todo', inprogress: 'inprog', done: 'done' }[task.status] || 'todo';
+  return `
+    <div class="task-card ${statusClass}" onclick="openTaskDetail('${task.id}')">
+      <div class="task-card-title">${escHtml(task.title)}</div>
+      ${task.desc ? `<div class="task-card-desc">${escHtml(task.desc)}</div>` : ''}
+      <div class="task-card-meta">
+        ${priorityTag(task.priority)}
+        ${task.comments.length ? `<span class="comment-count">💬 ${task.comments.length}</span>` : ''}
+        ${assignee ? `<div class="mini-avatar" style="background:${assignee.color}" title="${assignee.name}">${assignee.name[0]}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+function taskRow(task) {
+  const assignee = task.assigneeId ? getUserById(task.assigneeId) : null;
+  const creator  = getUserById(task.creatorId);
+  return `
+    <div class="task-row" onclick="openTaskDetail('${task.id}')">
+      <div>
+        <div class="task-row-title">${escHtml(task.title)}</div>
+        ${task.desc ? `<div class="task-row-desc">${escHtml(task.desc.slice(0,80))}${task.desc.length>80?'…':''}</div>` : ''}
+      </div>
+      ${priorityTag(task.priority)}
+      ${statusPill(task.status)}
+      ${assignee ? `<div class="mini-avatar" style="background:${assignee.color}" title="Assigned: ${assignee.name}">${assignee.name[0]}</div>` : '<div style="width:28px"></div>'}
+      <span style="font-size:11px; color:var(--text3); font-family:'Space Mono',monospace; white-space:nowrap">${fmtDate(task.createdAt)}</span>
+    </div>`;
+}
+
+function emptyState(icon, title, sub) {
+  return `<div class="empty-state"><div class="empty-icon">${icon}</div><h3>${title}</h3><p>${sub}</p></div>`;
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+}
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ══════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════
+
+function renderDashboard() {
+  const tasks = DB.tasks;
+  const total   = tasks.length;
+  const done    = tasks.filter(t => t.status === 'done').length;
+  const inprog  = tasks.filter(t => t.status === 'inprogress').length;
+  const pending = tasks.filter(t => t.status === 'todo').length;
+  const pct     = total ? Math.round(done / total * 100) : 0;
+
+  document.getElementById('stat-total').textContent  = total;
+  document.getElementById('stat-done').textContent   = done;
+  document.getElementById('stat-inprog').textContent = inprog;
+  document.getElementById('stat-pending').textContent= pending;
+  document.getElementById('progress-pct').textContent= pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+
+  // Recent tasks
+  const recent = [...tasks].sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5);
+  const rt = document.getElementById('recent-tasks');
+  rt.innerHTML = recent.length ? recent.map(taskRow).join('') : emptyState('📭','No tasks yet','Create your first task!');
+
+  // Activity
+  const al = document.getElementById('activity-list');
+  al.innerHTML = DB.activity.map(a => `
+    <div class="activity-item">
+      <div class="activity-dot" style="background:${a.color}"></div>
+      <div>
+        <div class="activity-text">${a.text}</div>
+        <div class="activity-time">${a.time}</div>
+      </div>
+    </div>`).join('');
+
+  // Nav badges
+  updateNavBadges();
+}
+
+function updateNavBadges() {
+  if (!currentUser) return;
+  document.getElementById('nav-my-count').textContent      = DB.tasks.filter(t => t.creatorId === currentUser.id).length;
+  document.getElementById('nav-assigned-count').textContent = DB.tasks.filter(t => t.assigneeId === currentUser.id).length;
+}
+
+// ══════════════════════════════════════════════
+//  BOARD
+// ══════════════════════════════════════════════
+
+function renderBoard() {
+  const cols = { todo: [], inprogress: [], done: [] };
+  DB.tasks.forEach(t => { if (cols[t.status]) cols[t.status].push(t); });
+
+  document.getElementById('board-todo-count').textContent  = cols.todo.length;
+  document.getElementById('board-inprog-count').textContent= cols.inprogress.length;
+  document.getElementById('board-done-count').textContent  = cols.done.length;
+
+  document.getElementById('board-todo').innerHTML  = cols.todo.length  ? cols.todo.map(taskCard).join('')  : '<div class="empty-state" style="padding:32px 16px"><div class="empty-icon" style="font-size:32px">🎯</div><p>No tasks here</p></div>';
+  document.getElementById('board-inprog').innerHTML= cols.inprogress.length ? cols.inprogress.map(taskCard).join('') : '<div class="empty-state" style="padding:32px 16px"><div class="empty-icon" style="font-size:32px">🔄</div><p>Nothing in progress</p></div>';
+  document.getElementById('board-done').innerHTML  = cols.done.length  ? cols.done.map(taskCard).join('')  : '<div class="empty-state" style="padding:32px 16px"><div class="empty-icon" style="font-size:32px">✅</div><p>No completed tasks</p></div>';
+}
+
+// ══════════════════════════════════════════════
+//  MY TASKS
+// ══════════════════════════════════════════════
+
+function renderMyTasks() {
+  const tasks = DB.tasks.filter(t => t.creatorId === currentUser.id);
+  document.getElementById('my-tasks-list').innerHTML = tasks.length ? tasks.map(taskRow).join('') : emptyState('✏️','No tasks created','Click "+ New Task" to get started');
+}
+
+// ══════════════════════════════════════════════
+//  ASSIGNED
+// ══════════════════════════════════════════════
+
+function renderAssigned() {
+  const tasks = DB.tasks.filter(t => t.assigneeId === currentUser.id);
+  document.getElementById('assigned-list').innerHTML = tasks.length ? tasks.map(taskRow).join('') : emptyState('📬','Nothing assigned to you','Ask your team to assign tasks!');
+}
+
+// ══════════════════════════════════════════════
+//  ALL TASKS
+// ══════════════════════════════════════════════
+
+function renderAllTasks() {
+  let tasks = DB.tasks;
+  if (allTasksFilter === 'todo')       tasks = tasks.filter(t => t.status === 'todo');
+  if (allTasksFilter === 'inprogress') tasks = tasks.filter(t => t.status === 'inprogress');
+  if (allTasksFilter === 'done')       tasks = tasks.filter(t => t.status === 'done');
+  if (allTasksFilter === 'high')       tasks = tasks.filter(t => t.priority === 'high');
+  if (allTasksSearch) tasks = tasks.filter(t => t.title.toLowerCase().includes(allTasksSearch.toLowerCase()) || (t.desc||'').toLowerCase().includes(allTasksSearch.toLowerCase()));
+  document.getElementById('all-tasks-list').innerHTML = tasks.length ? tasks.map(taskRow).join('') : emptyState('🔍','No matching tasks','Try a different filter');
+}
+
+function filterAllTasks(f, btn) {
+  allTasksFilter = f;
+  document.querySelectorAll('#page-all-tasks .filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderAllTasks();
+}
+
+function searchTasks(val) {
+  allTasksSearch = val;
+  renderAllTasks();
+}
+
+// ══════════════════════════════════════════════
+//  TEAM
+// ══════════════════════════════════════════════
+
+function renderTeam() {
+  const grid = document.getElementById('team-grid');
+  grid.innerHTML = DB.users.map(u => {
+    const created  = DB.tasks.filter(t => t.creatorId === u.id).length;
+    const assigned = DB.tasks.filter(t => t.assigneeId === u.id).length;
+    const done     = DB.tasks.filter(t => t.assigneeId === u.id && t.status === 'done').length;
+    return `
+      <div class="member-card">
+        <div class="member-avatar" style="background:${u.color}">${u.name[0]}</div>
+        <div class="member-name">${escHtml(u.name)}</div>
+        <div class="member-email">${escHtml(u.email)}</div>
+        <div class="member-stats">
+          <div class="member-stat"><div class="member-stat-val" style="color:var(--accent)">${created}</div><div class="member-stat-lbl">Created</div></div>
+          <div class="member-stat"><div class="member-stat-val" style="color:var(--accent4)">${assigned}</div><div class="member-stat-lbl">Assigned</div></div>
+          <div class="member-stat"><div class="member-stat-val" style="color:var(--accent3)">${done}</div><div class="member-stat-lbl">Done</div></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════
+//  CREATE / EDIT TASK
+// ══════════════════════════════════════════════
+
+function openCreateTask() {
+  document.getElementById('task-form-title').textContent = 'New Task';
+  document.getElementById('task-edit-id').value  = '';
+  document.getElementById('task-title').value    = '';
+  document.getElementById('task-desc').value     = '';
+  document.getElementById('task-priority').value = 'medium';
+  document.getElementById('task-status').value   = 'todo';
+  populateAssigneeSelect('');
+  openModal('task-form-modal');
+}
+
+function openEditTask(taskId) {
+  const task = DB.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  document.getElementById('task-form-title').textContent = 'Edit Task';
+  document.getElementById('task-edit-id').value  = task.id;
+  document.getElementById('task-title').value    = task.title;
+  document.getElementById('task-desc').value     = task.desc || '';
+  document.getElementById('task-priority').value = task.priority;
+  document.getElementById('task-status').value   = task.status;
+  populateAssigneeSelect(task.assigneeId || '');
+  closeModal('task-detail-modal');
+  openModal('task-form-modal');
+}
+
+function populateAssigneeSelect(selectedId) {
+  const sel = document.getElementById('task-assignee');
+  sel.innerHTML = '<option value="">Unassigned</option>' +
+    DB.users.map(u => `<option value="${u.id}" ${u.id === selectedId ? 'selected' : ''}>${escHtml(u.name)}</option>`).join('');
+}
+
+function saveTask() {
+  const title  = document.getElementById('task-title').value.trim();
+  if (!title) { toast('Title is required', 'error'); return; }
+
+  const editId   = document.getElementById('task-edit-id').value;
+  const desc     = document.getElementById('task-desc').value.trim();
+  const priority = document.getElementById('task-priority').value;
+  const assignee = document.getElementById('task-assignee').value;
+  const status   = document.getElementById('task-status').value;
+
+  if (editId) {
+    // UPDATE
+    const task = DB.tasks.find(t => t.id === editId);
+    Object.assign(task, { title, desc, priority, status, assigneeId: assignee || null });
+    addActivity(`<strong>${currentUser.name}</strong> updated <strong>${title}</strong>`);
+    toast('Task updated!', 'success');
+  } else {
+    // CREATE
+    const newTask = {
+      id: 't' + Date.now(),
+      title, desc, priority, status,
+      creatorId: currentUser.id,
+      assigneeId: assignee || null,
+      comments: [],
+      createdAt: new Date().toISOString()
+    };
+    DB.tasks.unshift(newTask);
+    addActivity(`<strong>${currentUser.name}</strong> created <strong>${title}</strong>`);
+    toast('Task created!', 'success');
+  }
+
+  closeModal('task-form-modal');
+  refreshAll();
+}
+
+// ══════════════════════════════════════════════
+//  TASK DETAIL
+// ══════════════════════════════════════════════
+
+function openTaskDetail(taskId) {
+  currentTaskId = taskId;
+  renderTaskDetail();
+  openModal('task-detail-modal');
+}
+
+function renderTaskDetail() {
+  const task = DB.tasks.find(t => t.id === currentTaskId);
+  if (!task) return;
+
+  const creator  = getUserById(task.creatorId);
+  const assignee = task.assigneeId ? getUserById(task.assigneeId) : null;
+
+  document.getElementById('detail-title').textContent = task.title;
+  document.getElementById('detail-desc').textContent  = task.desc || '—';
+  document.getElementById('detail-creator').textContent  = creator ? creator.name : 'Unknown';
+  document.getElementById('detail-assignee').textContent = assignee ? assignee.name : 'Unassigned';
+  document.getElementById('detail-date').textContent  = fmtDate(task.createdAt);
+
+  const prioMap = { high: '🔴 High', medium: '🟡 Medium', low: '🟢 Low' };
+  document.getElementById('detail-priority').textContent = prioMap[task.priority] || task.priority;
+
+  // Status buttons
+  const statuses = [['todo','To-Do'],['inprogress','In Progress'],['done','Done']];
+  document.getElementById('detail-status-btns').innerHTML = statuses.map(([val, label]) => `
+    <button class="status-btn ${task.status === val ? 'active-' + (val==='inprogress'?'inprog':val) : ''}"
+      onclick="changeTaskStatus('${val}')">${label}</button>`).join('');
+
+  // Comments
+  renderComments(task);
+}
+
+function changeTaskStatus(newStatus) {
+  const task = DB.tasks.find(t => t.id === currentTaskId);
+  if (!task) return;
+  const old = task.status;
+  task.status = newStatus;
+  if (old !== newStatus) addActivity(`<strong>${currentUser.name}</strong> moved <strong>${task.title}</strong> to ${newStatus}`);
+  renderTaskDetail();
+  refreshAll();
+}
+
+function renderComments(task) {
+  const cl = document.getElementById('comments-list');
+  if (!task.comments.length) {
+    cl.innerHTML = `<div style="color:var(--text3); font-size:13px; padding: 8px 0">No comments yet. Be the first!</div>`;
+    return;
+  }
+  cl.innerHTML = task.comments.map(c => {
+    const u = getUserById(c.userId);
+    return `
+      <div class="comment">
+        <div class="comment-avatar" style="background:${u?.color||'#666'}">${u?.name[0]||'?'}</div>
+        <div class="comment-content">
+          <div class="comment-meta">
+            <span class="comment-author">${u?.name||'Unknown'}</span>
+            <span class="comment-time">${fmtTime(c.time)}</span>
+          </div>
+          <div class="comment-text">${escHtml(c.text)}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function addComment() {
+  const input = document.getElementById('comment-input');
+  const text  = input.value.trim();
+  if (!text) return;
+
+  const task = DB.tasks.find(t => t.id === currentTaskId);
+  task.comments.push({ id: 'c' + Date.now(), userId: currentUser.id, text, time: new Date().toISOString() });
+  addActivity(`<strong>${currentUser.name}</strong> commented on <strong>${task.title}</strong>`);
+  input.value = '';
+  renderTaskDetail();
+  toast('Comment added!', 'success');
+}
+
+function editCurrentTask() { openEditTask(currentTaskId); }
+
+function deleteCurrentTask() {
+  const task = DB.tasks.find(t => t.id === currentTaskId);
+  if (!task) return;
+  if (!confirm(`Delete "${task.title}"?`)) return;
+  DB.tasks = DB.tasks.filter(t => t.id !== currentTaskId);
+  addActivity(`<strong>${currentUser.name}</strong> deleted a task`);
+  closeModal('task-detail-modal');
+  refreshAll();
+  toast('Task deleted', 'error');
+}
+
+// ══════════════════════════════════════════════
+//  ACTIVITY
+// ══════════════════════════════════════════════
+
+function addActivity(text) {
+  DB.activity.unshift({ text, time: 'just now', color: currentUser?.color || '#6c63ff' });
+  if (DB.activity.length > 20) DB.activity.pop();
+}
+
+// ══════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════
+
+function refreshAll() {
+  const activePage = document.querySelector('.page.active');
+  if (activePage) {
+    const id = activePage.id.replace('page-', '');
+    renderPage(id);
+  }
+  updateNavBadges();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Close on backdrop click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Keyboard shortcut: ESC to close modals
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+});
+</script>
+</body>
+</html>
