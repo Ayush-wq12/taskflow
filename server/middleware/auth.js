@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const auth = (req, res, next) => {
+const protect = (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
@@ -16,4 +16,4 @@ const auth = (req, res, next) => {
   }
 };
 
-module.exports = auth;
+module.exports = { protect };
